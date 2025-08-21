@@ -39,3 +39,5 @@ def require_admin_jwt(current_user: UserEntity = Depends(get_current_user)):
     if current_user.role != RoleDomain.admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admins only.")
     return current_user
+
+#new
