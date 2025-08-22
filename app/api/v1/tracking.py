@@ -53,35 +53,8 @@ def update_point_admin(
         raise HTTPException(status_code=404, detail="Point not found")
     p = repo.update_point(p, lat=payload.lat, lon=payload.lon, created_at=payload.created_at)
     return {"user_id": p.user_id, "lat": p.lat, "lon": p.lon, "created_at": p.created_at}
-# --- Tek bir noktayı SİL (kendi noktası veya admin)
-@router.delete("/points/{point_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_point(
-    point_id: int,
-    db: Session = Depends(get_db),
-    me: UserEntity = Depends(get_current_user),
-):
-    repo = LocationRepository(db)
-    p = repo.get_by_id(point_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="Point not found")
-    if (me.role.value != "admin") and (p.user_id != me.id):
-        raise HTTPException(status_code=403, detail="Forbidden")
-    repo.delete_point(p)
-    return
 
-# --- Bir günün TÜM noktalarını SİL (kendi günü)
-@router.delete("/points/{point_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_point_admin(
-    point_id: int,
-    db: Session = Depends(get_db),
-    _ok: bool = Depends(require_admin_key),             #  X-Admin-Key
-):
-    repo = LocationRepository(db)
-    p = repo.get_by_id(point_id)
-    if not p:
-        raise HTTPException(status_code=404, detail="Point not found")
-    repo.delete_point(p)
-    return
+
 
 # --- Admin: belirli kullanıcının gününü sil
 @router.delete("/admin/{user_id}/day", status_code=status.HTTP_200_OK)
@@ -104,7 +77,6 @@ async def _auth_ws_token(raw_token: str) -> dict:
 # ---- WS: kullanıcı konum gönderir
 @router.websocket("/ws/track")
 async def ws_track(websocket: WebSocket, token: str):
-    # token query-param ile gelir: ws://..../ws/track?token=<JWT>
     payload = await _auth_ws_token(token)
     user_id = int(payload.get("sub", "0"))
     role = payload.get("role")
@@ -114,10 +86,17 @@ async def ws_track(websocket: WebSocket, token: str):
     await manager.connect_user(user_id, websocket)
     try:
         while True:
-            data = await websocket.receive_json()  # {"type":"loc","lat":..,"lon":..}
-            if data.get("type") != "loc":
+            data = await websocket.receive_json()
+
+            # 🔧 HEM type HEM event destekle
+            kind = data.get("type") or data.get("event")
+            if kind != "loc":
+                # istersen ping/pong vb. başka event’leri de burada ele al
                 continue
-            lat = float(data["lat"]); lon = float(data["lon"])
+
+            lat = float(data["lat"])
+            lon = float(data["lon"])
+
             # DB'ye yaz
             from app.db.session import SessionLocal
             db: Session = SessionLocal()
@@ -126,20 +105,22 @@ async def ws_track(websocket: WebSocket, token: str):
                 p = repo.save_point(user_id, lat, lon, datetime.utcnow())
             finally:
                 db.close()
-            # adminlere yayınla
+
+            # adminlere canlı yayın
             await manager.broadcast_to_admins({
                 "event": "loc",
                 "user_id": user_id,
                 "lat": lat, "lon": lon,
                 "created_at": p.created_at.isoformat()
             })
-            # isteğe bağlı ack
-            await websocket.send_json({"ok": True})
-    except Exception:
-        pass
+
+            # küçük ACK
+            await websocket.send_json({"event": "ack", "ok": True})
+    except Exception as e:
+        # Hata yakalamayı boş bırakma; en azından logla
+        print("ws_track error:", e)
     finally:
         manager.disconnect_user(user_id, websocket)
-
 
 
 # ---- WS: admin canlı dinler
