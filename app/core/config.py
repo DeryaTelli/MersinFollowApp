@@ -1,8 +1,7 @@
 from pydantic import BaseModel , EmailStr
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 load_dotenv()
-
 class Settings(BaseModel):
     DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./app.db")
     JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-secret-change-me")

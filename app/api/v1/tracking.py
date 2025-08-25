@@ -84,10 +84,11 @@ async def ws_track(websocket: WebSocket, token: str):
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION); return
 
     await manager.connect_user(user_id, websocket)
+    print(f"[WS] user {user_id} connected")
     try:
         while True:
             data = await websocket.receive_json()
-            print("WS recv:", data)  # 👈 teşhis
+            print("WS recv:", data)
 
             # 🔧 HEM type HEM event destekle
             kind = data.get("type") or data.get("event")
@@ -123,9 +124,9 @@ async def ws_track(websocket: WebSocket, token: str):
         print("ws_track error:", e)
     finally:
         manager.disconnect_user(user_id, websocket)
+        print(f"[WS] user {user_id} connected")
 
-
-# ---- WS: admin canlı dinler
+    # ---- WS: admin canlı dinler
 @router.websocket("/ws/admin")
 async def ws_admin(websocket: WebSocket, token: str):
     payload = await _auth_ws_token(token)
