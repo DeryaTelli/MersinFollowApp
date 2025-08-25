@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, WebSocket, Query
 from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_current_user, require_admin_jwt
@@ -87,6 +87,7 @@ async def ws_track(websocket: WebSocket, token: str):
     try:
         while True:
             data = await websocket.receive_json()
+            print("WS recv:", data)  # 👈 teşhis
 
             # 🔧 HEM type HEM event destekle
             kind = data.get("type") or data.get("event")
@@ -102,7 +103,8 @@ async def ws_track(websocket: WebSocket, token: str):
             db: Session = SessionLocal()
             try:
                 repo = LocationRepository(db)
-                p = repo.save_point(user_id, lat, lon, datetime.utcnow())
+                p = repo.save_point(user_id, lat, lon, datetime.now(timezone.utc))
+                print(f"DB saved: uid={user_id} id={p.id} at=({lat},{lon})")
             finally:
                 db.close()
 
