@@ -54,6 +54,26 @@ def update_point_admin(
     p = repo.update_point(p, lat=payload.lat, lon=payload.lon, created_at=payload.created_at)
     return {"user_id": p.user_id, "lat": p.lat, "lon": p.lon, "created_at": p.created_at}
 
+# --- Admin: belirli kullanıcının GÜNÜNÜ LİSTELE (tüm noktalar) [GET]
+@router.get("/admin/{user_id}/day", response_model=list[LocationOut])
+def admin_user_day(
+    user_id: int,
+    day: date = Query(...),
+    db: Session = Depends(get_db),
+    _admin: UserEntity = Depends(require_admin_jwt),  # Admin JWT ile koru
+):
+    repo = LocationRepository(db)
+    pts = repo.list_points_for_day(user_id, day)
+    return [
+        {
+            "user_id": user_id,
+            "lat": p.lat,
+            "lon": p.lon,
+            "created_at": p.created_at,
+        }
+        for p in pts
+    ]
+
 
 
 # --- Admin: belirli kullanıcının gününü sil
@@ -68,20 +88,7 @@ def admin_delete_user_day(
     count = repo.delete_points_for_day(user_id, day)
     return {"deleted": count}
 
-# --- Admin: belirli kullanıcının günündeki TÜM noktalar (liste)
-@router.get("/admin/{user_id}/day", response_model=list[LocationOut])
-def admin_user_day(
-    user_id: int,
-    day: date = Query(...),
-    db: Session = Depends(get_db),
-    _admin: UserEntity = Depends(require_admin_jwt),
-):
-    repo = LocationRepository(db)
-    pts = repo.list_points_for_day(user_id, day)
-    return [
-        {"user_id": user_id, "lat": p.lat, "lon": p.lon, "created_at": p.created_at}
-        for p in pts
-    ]
+
 
 # ---- WS auth yardımcı
 async def _auth_ws_token(raw_token: str) -> dict:
