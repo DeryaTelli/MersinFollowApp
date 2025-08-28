@@ -1,8 +1,14 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, and_
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from app.domain.location import LocationPoint
 from app.domain.user import User, Role
+
+def _ensure_utc(dt: datetime) -> datetime:
+    """Naive gelirse UTC varsay, aware ise UTC'ye çevir."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 class LocationRepository:
     def __init__(self, db: Session):

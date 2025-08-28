@@ -55,7 +55,7 @@ def update_point_admin(
     return {"user_id": p.user_id, "lat": p.lat, "lon": p.lon, "created_at": p.created_at}
 
 # --- Admin: belirli kullanıcının GÜNÜNÜ LİSTELE (tüm noktalar) [GET]
-@router.get("/admin/{user_id}/day", response_model=list[LocationOut])
+@router.get("/admin/users/{user_id}/day", response_model=list[LocationOut])
 def admin_user_day(
     user_id: int,
     day: date = Query(...),
